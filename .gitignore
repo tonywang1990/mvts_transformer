@@ -4,6 +4,7 @@
 *.whl
 build
 *.egg-info
+.venv
 
 # Dataset
 *.npz

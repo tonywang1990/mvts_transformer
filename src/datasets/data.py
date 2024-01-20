@@ -9,7 +9,7 @@ from itertools import repeat, chain
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from sktime.utils import load_data
+from sktime import datasets
 
 from datasets import utils
 
@@ -443,6 +443,59 @@ class PMUData(BaseData):
         return df
 
 
+
+class FutsData(BaseData):
+    """
+    Dataset class for Machine dataset.
+    Attributes:
+        all_df: dataframe indexed by ID, with multiple rows corresponding to the same index (sample).
+            Each row is a time step; Each column contains either metadata (e.g. timestamp) or a feature.
+        feature_df: contains the subset of columns of `all_df` which correspond to selected features
+        feature_names: names of columns contained in `feature_df` (same as feature_df.columns)
+        all_IDs: IDs contained in `all_df`/`feature_df` (same as all_df.index.unique() )
+        max_seq_len: maximum sequence (time series) length. If None, script argument `max_seq_len` will be used.
+            (Moreover, script argument overrides this attribute)
+    """
+
+    def __init__(self, root_dir, file_list=None, pattern=None, n_proc=1, limit_size=None, config=None):
+        #root_dir = "/Users/tonywy/Desktop/Xode/futs_data/ur/daily_frame.*.parquet" 
+        self.all_df = self.get_data(root_dir, 'UR')
+        #self.all_df = self.all_df.sort_values(by=['machine_record_index'])  # datasets is presorted
+        self.max_seq_len = 1024
+        self.all_df['futs_record_index'] = self.all_df.index // self.max_seq_len
+        self.all_df = self.all_df.set_index('futs_record_index')
+        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs
+        if limit_size is not None:
+            if limit_size > 1:
+                limit_size = int(limit_size)
+            else:  # interpret as proportion if in (0, 1]
+                limit_size = int(limit_size * len(self.all_IDs))
+            self.all_IDs = self.all_IDs[:limit_size]
+            self.all_df = self.all_df.loc[self.all_IDs]
+
+        self.feature_names = list(self.all_df.columns)
+        self.feature_df = self.all_df[self.feature_names]
+    
+    def get_data(self, pattern: str, symbol: str):
+        datas = []
+        datas_test = []
+        for file in sorted(glob.glob(pattern)):
+            if "xy" in file:
+                continue
+            date = file.split(".")[-2]
+            if int(date) < 20231101:
+                continue
+            df = pd.read_parquet(file)
+            df = df[df["book_valid_field::book=book_UR"] > 0]
+            useful_cols = [c for c in df.columns if c.startswith('bookdata')]
+            data = df[useful_cols]
+            datas.append(data)
+        logger.info(f"number of days loaded: {len(datas)}")
+        data = pd.concat(datas)
+        data = data.reset_index(drop=True)
+        return data
+
 data_factory = {'weld': WeldData,
                 'tsra': TSRegressionArchive,
-                'pmu': PMUData}
+                'pmu': PMUData,
+                'futs': FutsData}
