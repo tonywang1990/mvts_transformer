@@ -10,4 +10,7 @@ tensorboard
 matplotlib
 numpy
 scikit_learn
-sktime==0.4.1
+sktime
+pyarrow
+psutil
+gputil

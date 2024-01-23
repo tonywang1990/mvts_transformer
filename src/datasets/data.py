@@ -459,7 +459,7 @@ class FutsData(BaseData):
 
     def __init__(self, root_dir, file_list=None, pattern=None, n_proc=1, limit_size=None, config=None):
         #root_dir = "/Users/tonywy/Desktop/Xode/futs_data/ur/daily_frame.*.parquet" 
-        self.all_df = self.get_data(root_dir, 'UR')
+        self.all_df = self.get_data(os.path.join(root_dir, pattern))
         #self.all_df = self.all_df.sort_values(by=['machine_record_index'])  # datasets is presorted
         self.max_seq_len = 1024
         self.all_df['futs_record_index'] = self.all_df.index // self.max_seq_len
@@ -476,23 +476,78 @@ class FutsData(BaseData):
         self.feature_names = list(self.all_df.columns)
         self.feature_df = self.all_df[self.feature_names]
     
-    def get_data(self, pattern: str, symbol: str):
+    def get_data(self, pattern: str):
         datas = []
-        datas_test = []
+        logger.info(f"loading data from {pattern}")
         for file in sorted(glob.glob(pattern)):
             if "xy" in file:
                 continue
             date = file.split(".")[-2]
-            if int(date) < 20231101:
-                continue
+            #if int(date) < 20231101:
+            #    continue
             df = pd.read_parquet(file)
-            df = df[df["book_valid_field::book=book_UR"] > 0]
+            valid_col = [c for c in df.columns if c.startswith("book_valid_field")]
+            assert len(valid_col) == 1, df.columns
+            valid_col = valid_col[0]
+            df = df[df[valid_col] > 0]
             useful_cols = [c for c in df.columns if c.startswith('bookdata')]
             data = df[useful_cols]
             datas.append(data)
-        logger.info(f"number of days loaded: {len(datas)}")
-        data = pd.concat(datas)
-        data = data.reset_index(drop=True)
+        logger.info(f"number of files loaded: {len(datas)}")
+        if len(datas) != 0:
+            data = pd.concat(datas)
+            data = data.reset_index(drop=True)
+        else:
+            data = None
+        return data
+    
+    def get_data_xl(self, pattern: str):
+        datas = []
+        logger.info(f"preprocssing data from {pattern}")
+        num_rows = 0
+        def _preprocess(df: pd.DataFrame):
+            valid_col = [c for c in df.columns if c.startswith("book_valid_field")]
+            assert len(valid_col) == 1, df.columns
+            valid_col = valid_col[0]
+            df = df[df[valid_col] > 0]
+            useful_cols = [c for c in df.columns if c.startswith('bookdata')]
+            df = df[useful_cols]
+            return df
+
+        for file in sorted(glob.glob(pattern)):
+            if "xy" in file:
+                continue
+            #date = file.split(".")[-2]
+            df = pd.read_parquet(file)
+            df = _preprocess(df)
+            num_rows += df.shape[0]
+            num_cols = df.shape[1]
+        logger.info(f"Total data size needs to load: {num_rows} x {num_cols}")
+
+        split = 'train' if 'train' in pattern else 'val'
+        path = f"/workspace/futs/data/{split}.bin"
+
+        # If file already exists and matches, directly return without importing again.
+        if os.path.isfile(path):
+            arr = np.memmap(path, dtype=float, mode = "r")
+            if arr.shape == (num_rows, num_cols):
+                logger.info(f"loaded data from preprocessed file {path}")
+                return data.pd.DataFrame(arr, copy=False)
+
+        # If files don't exist, create and import data.
+        arr = np.memmap(path, dtype=float, mode="w+", shape=(num_rows, num_cols))
+        i = 0
+        for file in sorted(glob.glob(pattern)):
+            if "xy" in file:
+                continue
+            #date = file.split(".")[-2]
+            df = pd.read_parquet(file)
+            df = _preprocess(df)
+            arr[i:i+df.shape[0], :] = df.values
+            i += df.shape[0] 
+        logger.info(f"loaded data from {pattern}")
+        data = pd.DataFrame(arr, copy=False)
+        arr.flush() # save to disk
         return data
 
 data_factory = {'weld': WeldData,

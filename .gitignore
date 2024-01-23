@@ -8,6 +8,7 @@ build
 
 # Dataset
 *.npz
+output
 
 # Models
 *.pth
