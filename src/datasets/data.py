@@ -459,7 +459,7 @@ class FutsData(BaseData):
 
     def __init__(self, root_dir, file_list=None, pattern=None, n_proc=1, limit_size=None, config=None):
         #root_dir = "/Users/tonywy/Desktop/Xode/futs_data/ur/daily_frame.*.parquet" 
-        self.all_df = self.get_data(os.path.join(root_dir, pattern))
+        self.all_df = self.get_data_xl(os.path.join(root_dir, pattern))
         #self.all_df = self.all_df.sort_values(by=['machine_record_index'])  # datasets is presorted
         self.max_seq_len = 1024
         self.all_df['futs_record_index'] = self.all_df.index // self.max_seq_len
