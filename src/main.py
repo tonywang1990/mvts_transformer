@@ -144,6 +144,7 @@ def main(config):
     model = model_factory(config, my_data)
 
     if config['freeze']:
+        logger.info("freeze the model except the final layer!")
         for name, param in model.named_parameters():
             if name.startswith('output_layer'):
                 param.requires_grad = True
@@ -172,6 +173,7 @@ def main(config):
     lr = config['lr']  # current learning step
     # Load model and optimizer state
     if args.load_model:
+        logger.info(f"load model params from {config['load_model']}")
         model, optimizer, start_epoch = utils.load_model(model, config['load_model'], optimizer, config['resume'],
                                                          config['change_output'],
                                                          config['lr'],
