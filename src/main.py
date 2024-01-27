@@ -23,6 +23,7 @@ from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import numpy as np
 
 # Project modules
 from options import Options
@@ -59,65 +60,74 @@ def main(config):
     # Build data
     logger.info("Loading and preprocessing data ...")
     data_class = data_factory[config['data_class']]
-    my_data = data_class(config['data_dir'], pattern=config['pattern'], n_proc=config['n_proc'], limit_size=config['limit_size'], config=config)
-    feat_dim = my_data.feature_df.shape[1]  # dimensionality of data features
-    if config['task'] == 'classification':
-        validation_method = 'StratifiedShuffleSplit'
-        labels = my_data.labels_df.values.flatten()
+    if config['test_only'] == 'testset':
+        logger.info("test_only: only loading test dataset.")
+        train_indices, val_indices, test_indices = [], [], []
+        if config['test_pattern']:  # used if test data come from different files / file patterns
+            test_data = data_class(config['data_dir'], pattern=config['test_pattern'], n_proc=-1, config=config)
+            test_indices = test_data.all_IDs
+            my_data = test_data
+        logger.info("{} samples will be used for testing".format(len(test_indices)))
     else:
-        validation_method = 'ShuffleSplit'
-        labels = None
+        my_data = data_class(config['data_dir'], pattern=config['pattern'], n_proc=config['n_proc'], limit_size=config['limit_size'], config=config)
+        feat_dim = my_data.feature_df.shape[1]  # dimensionality of data features
+        if config['task'] == 'classification':
+            validation_method = 'StratifiedShuffleSplit'
+            labels = my_data.labels_df.values.flatten()
+        else:
+            validation_method = 'ShuffleSplit'
+            labels = None
 
-    # Split dataset
-    test_data = my_data
-    test_indices = None  # will be converted to empty list in `split_dataset`, if also test_set_ratio == 0
-    val_data = my_data
-    val_indices = []
-    if config['test_pattern']:  # used if test data come from different files / file patterns
-        test_data = data_class(config['data_dir'], pattern=config['test_pattern'], n_proc=-1, config=config)
-        test_indices = test_data.all_IDs
-    if config['test_from']:  # load test IDs directly from file, if available, otherwise use `test_set_ratio`. Can work together with `test_pattern`
-        test_indices = list(set([line.rstrip() for line in open(config['test_from']).readlines()]))
-        try:
-            test_indices = [int(ind) for ind in test_indices]  # integer indices
-        except ValueError:
-            pass  # in case indices are non-integers
-        logger.info("Loaded {} test IDs from file: '{}'".format(len(test_indices), config['test_from']))
-    if config['val_pattern']:  # used if val data come from different files / file patterns
-        val_data = data_class(config['data_dir'], pattern=config['val_pattern'], n_proc=-1, config=config)
-        val_indices = val_data.all_IDs
+        # Split dataset
+        test_data = my_data
+        test_indices = None  # will be converted to empty list in `split_dataset`, if also test_set_ratio == 0
+        val_data = my_data
+        val_indices = []
+        if config['test_pattern']:  # used if test data come from different files / file patterns
+            test_data = data_class(config['data_dir'], pattern=config['test_pattern'], n_proc=-1, config=config)
+            test_indices = test_data.all_IDs
+        if config['test_from']:  # load test IDs directly from file, if available, otherwise use `test_set_ratio`. Can work together with `test_pattern`
+            test_indices = list(set([line.rstrip() for line in open(config['test_from']).readlines()]))
+            try:
+                test_indices = [int(ind) for ind in test_indices]  # integer indices
+            except ValueError:
+                pass  # in case indices are non-integers
+            logger.info("Loaded {} test IDs from file: '{}'".format(len(test_indices), config['test_from']))
+        if config['val_pattern']:  # used if val data come from different files / file patterns
+            val_data = data_class(config['data_dir'], pattern=config['val_pattern'], n_proc=-1, config=config)
+            val_indices = val_data.all_IDs
 
-    # Note: currently a validation set must exist, either with `val_pattern` or `val_ratio`
-    # Using a `val_pattern` means that `val_ratio` == 0 and `test_ratio` == 0
-    if config['val_ratio'] > 0:
-        train_indices, val_indices, test_indices = split_dataset(data_indices=my_data.all_IDs,
-                                                                 validation_method=validation_method,
-                                                                 n_splits=1,
-                                                                 validation_ratio=config['val_ratio'],
-                                                                 test_set_ratio=config['test_ratio'],  # used only if test_indices not explicitly specified
-                                                                 test_indices=test_indices,
-                                                                 random_seed=1337,
-                                                                 labels=labels)
-        train_indices = train_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
-        val_indices = val_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
-    else:
-        train_indices = my_data.all_IDs
-        if test_indices is None:
-            test_indices = []
+        # Note: currently a validation set must exist, either with `val_pattern` or `val_ratio`
+        # Using a `val_pattern` means that `val_ratio` == 0 and `test_ratio` == 0
+        if config['val_ratio'] > 0:
+            train_indices, val_indices, test_indices = split_dataset(data_indices=my_data.all_IDs,
+                                                                    validation_method=validation_method,
+                                                                    n_splits=1,
+                                                                    validation_ratio=config['val_ratio'],
+                                                                    test_set_ratio=config['test_ratio'],  # used only if test_indices not explicitly specified
+                                                                    test_indices=test_indices,
+                                                                    random_seed=1337,
+                                                                    labels=labels)
+            train_indices = train_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
+            val_indices = val_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
+        else:
+            train_indices = my_data.all_IDs
+            if test_indices is None:
+                test_indices = []
 
-    logger.info("{} samples may be used for training".format(len(train_indices)))
-    logger.info("{} samples will be used for validation".format(len(val_indices)))
-    logger.info("{} samples will be used for testing".format(len(test_indices)))
+        logger.info("{} samples may be used for training".format(len(train_indices)))
+        logger.info("{} samples will be used for validation".format(len(val_indices)))
+        logger.info("{} samples will be used for testing".format(len(test_indices)))
 
-    with open(os.path.join(config['output_dir'], 'data_indices.json'), 'w') as f:
-        try:
-            json.dump({'train_indices': list(map(int, train_indices)),
-                       'val_indices': list(map(int, val_indices)),
-                       'test_indices': list(map(int, test_indices))}, f, indent=4)
-        except ValueError:  # in case indices are non-integers
-            json.dump({'train_indices': list(train_indices),
-                       'val_indices': list(val_indices),
-                       'test_indices': list(test_indices)}, f, indent=4)
+        with open(os.path.join(config['output_dir'], 'data_indices.json'), 'w') as f:
+            try:
+                json.dump({'train_indices': list(map(int, train_indices)),
+                        'val_indices': list(map(int, val_indices)),
+                        'test_indices': list(map(int, test_indices))}, f, indent=4)
+            except ValueError:  # in case indices are non-integers
+                json.dump({'train_indices': list(train_indices),
+                        'val_indices': list(val_indices),
+                        'test_indices': list(test_indices)}, f, indent=4)
 
     # Pre-process features
     normalizer = None
@@ -125,7 +135,7 @@ def main(config):
         with open(config['norm_from'], 'rb') as f:
             norm_dict = pickle.load(f)
         normalizer = Normalizer(**norm_dict)
-    elif config['normalization'] is not None:
+    elif config['normalization'] is not None and config['test_only'] != 'testset':
         normalizer = Normalizer(config['normalization'])
         my_data.feature_df.loc[train_indices] = normalizer.normalize(my_data.feature_df.loc[train_indices])
         if not config['normalization'].startswith('per_sample'):
@@ -150,6 +160,10 @@ def main(config):
                 param.requires_grad = True
             else:
                 param.requires_grad = False
+    if config['test_only'] == 'testset':
+        logger.info("freeze the model for test only!")
+        for name, param in model.named_parameters():
+            param.requires_grad = False
 
     logger.info("Model:\n{}".format(model))
     logger.info("Total number of parameters: {}".format(utils.count_parameters(model)))
@@ -192,13 +206,18 @@ def main(config):
                                  shuffle=False,
                                  num_workers=config['num_workers'],
                                  pin_memory=True,
+                                 drop_last=True,
                                  collate_fn=lambda x: collate_fn(x, max_len=model.max_len))
         test_evaluator = runner_class(model, test_loader, device, loss_module,
                                             print_interval=config['print_interval'], console=config['console'])
+        logger.info("start evaluating..")
         aggr_metrics_test, per_batch_test = test_evaluator.evaluate(keep_all=True)
+        pred_filepath = os.path.join(config['pred_dir'], 'test_predictions')
+        np.savez(pred_filepath, **per_batch_test)
+        logger.info(f"prediction saved to {pred_filepath}")
         print_str = 'Test Summary: '
         for k, v in aggr_metrics_test.items():
-            print_str += '{}: {:8f} | '.format(k, v)
+            print_str += f"{k}: {v} | "
         logger.info(print_str)
         return
     
@@ -211,6 +230,7 @@ def main(config):
                             shuffle=False,
                             num_workers=config['num_workers'],
                             pin_memory=True,
+                            drop_last=True,
                             collate_fn=lambda x: collate_fn(x, max_len=model.max_len))
 
     train_dataset = dataset_class(my_data, train_indices)
@@ -220,6 +240,7 @@ def main(config):
                               shuffle=True,
                               num_workers=config['num_workers'],
                               pin_memory=True,
+                              drop_last=True,
                               collate_fn=lambda x: collate_fn(x, max_len=model.max_len))
 
     trainer = runner_class(model, train_loader, device, loss_module, optimizer, l2_reg=output_reg,

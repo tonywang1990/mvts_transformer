@@ -128,7 +128,6 @@ class ClassiregressionDataset(Dataset):
         self.data = data  # this is a subclass of the BaseData class in data.py
         self.IDs = indices  # list of data IDs, but also mapping between integer index and ID
         self.feature_df = self.data.feature_df.loc[self.IDs]
-
         self.labels_df = self.data.labels_df.loc[self.IDs]
 
     def __getitem__(self, ind):

@@ -694,9 +694,111 @@ class FutsData(BaseData):
         #assert max(label_df.index) == max(feature_df.index)
         return label_df
 
+class FutsTestData(BaseData):
+    """
+    Dataset class for Machine dataset.
+    Attributes:
+        all_df: dataframe indexed by ID, with multiple rows corresponding to the same index (sample).
+            Each row is a time step; Each column contains either metadata (e.g. timestamp) or a feature.
+        feature_df: contains the subset of columns of `all_df` which correspond to selected features
+        feature_names: names of columns contained in `feature_df` (same as feature_df.columns)
+        all_IDs: IDs contained in `all_df`/`feature_df` (same as all_df.index.unique() )
+        max_seq_len: maximum sequence (time series) length. If None, script argument `max_seq_len` will be used.
+            (Moreover, script argument overrides this attribute)
+    """
+
+    def __init__(
+        self,
+        root_dir,
+        file_list=None,
+        pattern=None,
+        n_proc=1,
+        limit_size=None,
+        config=None,
+    ):
+        self.max_seq_len = 1024
+        self.lookahead = 40
+        # process features
+        data_df = self.get_feature_data(os.path.join(root_dir, pattern))
+        feature_df = [data_df.iloc[i:i+self.max_seq_len] for i in range(data_df.shape[0] - self.max_seq_len - self.lookahead+1)]
+        feature_df = pd.concat(feature_df)
+        feature_df = feature_df.reset_index(drop=True)
+        feature_df["futs_record_index"] = feature_df.index // self.max_seq_len
+        feature_df = feature_df.set_index("futs_record_index")
+        # process labels
+        labels_df = self.get_label_data(data_df, lookahead=self.lookahead, seq_len=self.max_seq_len)
+        last_batch = max(labels_df.index)
+        labels_df = labels_df[labels_df.index <= last_batch-1]
+        feature_df = feature_df[feature_df.index <= last_batch-1]
+        self.all_df = feature_df
+        self.labels_df = labels_df
+        
+        # self.all_df = self.all_df.sort_values(by=['machine_record_index'])  # datasets is presorted
+        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs
+        if limit_size is not None:
+            if limit_size > 1:
+                limit_size = int(limit_size)
+            else:  # interpret as proportion if in (0, 1]
+                limit_size = int(limit_size * len(self.all_IDs))
+            self.all_IDs = self.all_IDs[:limit_size]
+            self.all_df = self.all_df.loc[self.all_IDs]
+
+        self.feature_names = list(self.all_df.columns)
+        self.feature_df = self.all_df[self.feature_names]
+
+    def _preprocess(self, df: pd.DataFrame):
+        valid_col = [c for c in df.columns if c.startswith("book_valid_field")]
+        assert len(valid_col) == 1, df.columns
+        valid_col = valid_col[0]
+        df = df[df[valid_col] > 0]
+        useful_cols = [c for c in df.columns if c.startswith("bookdata")]
+        df = df[useful_cols]
+        return df
+
+    def get_feature_data(self, pattern: str):
+        datas = []
+        logger.info(f"loading data from {pattern}")
+        for file in sorted(glob.glob(pattern)):
+            if "xy" in file:
+                continue
+            df = pd.read_parquet(file)
+            data = self._preprocess(df)
+            datas.append(data)
+        logger.info(f"number of files loaded: {len(datas)}")
+        if len(datas) != 0:
+            data = pd.concat(datas)
+            data = data.reset_index(drop=True)
+        else:
+            data = None
+        return data
+
+    def get_label_data(self, feature_df: pd.DataFrame, lookahead: int, seq_len: int):
+        """
+        Compute label value based on feature_df.
+        TODO:
+        Current data is normalized with rolling window. Need to figure out how to unnormalize to calculate the right correlation. 
+        """
+        def _extract_label(data_df: pd.DataFrame, lookahead: int, seq_len:int):
+            BID = "bid_0"
+            ASK = "ask_0"
+            idx1 = [i for i, n in enumerate(data_df.columns) if BID in n]
+            idx2 = [i for i, n in enumerate(data_df.columns) if ASK in n]
+            assert len(idx1) == 1 and len(idx2) == 1, f"{idx1}, {idx2}"
+            # sample the dataframe by every seq_len(1024) rows with an offset of lookahead(40)
+            label_df = (
+                data_df.iloc[lookahead+seq_len:, idx1[0]] + data_df.iloc[lookahead+seq_len:, idx2[0]]
+            ) / 2
+            return label_df.to_frame().astype(np.float32)
+
+        label_df = _extract_label(feature_df, lookahead, seq_len)
+        label_df = label_df.reset_index(drop=True)
+        #assert max(label_df.index) == max(feature_df.index)
+        return label_df
+
 data_factory = {
     "weld": WeldData,
     "tsra": TSRegressionArchive,
     "pmu": PMUData,
     "futs": FutsData,
+    "futs_test": FutsTestData,
 }

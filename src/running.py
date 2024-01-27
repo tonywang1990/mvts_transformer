@@ -219,7 +219,7 @@ def validate(val_evaluator, tensorboard_writer, config, best_metrics, best_value
         best_metrics = aggr_metrics.copy()
 
         pred_filepath = os.path.join(config['pred_dir'], 'best_predictions')
-        #np.savez(pred_filepath, **per_batch)
+        np.savez(pred_filepath, **per_batch)
 
     return aggr_metrics, best_metrics, best_value
 
@@ -440,7 +440,7 @@ class SupervisedRunner(BaseRunner):
         epoch_loss = 0  # total loss of epoch
         total_samples = 0  # total samples in epoch
 
-        per_batch = {'target_masks': [], 'targets': [], 'predictions': [], 'metrics': [], 'IDs': []}
+        per_batch = {'target_masks': [], 'targets': [], 'predictions': [], 'metrics': [], 'IDs': [], 'x_base':[]}
         for i, batch in enumerate(self.dataloader):
 
             X, targets, padding_masks, IDs = batch
@@ -457,6 +457,8 @@ class SupervisedRunner(BaseRunner):
             per_batch['predictions'].append(predictions.cpu().numpy())
             per_batch['metrics'].append([loss.cpu().numpy()])
             per_batch['IDs'].append(IDs)
+            #x_base = ((X[:, -1, 0] + X[:, -1, 10])/2).squeeze()
+            per_batch['x_base'].append(X[:, -1, :].cpu().numpy())
 
             metrics = {"loss": mean_loss}
             if i % self.print_interval == 0:
@@ -465,6 +467,7 @@ class SupervisedRunner(BaseRunner):
 
             total_samples += len(loss)
             epoch_loss += batch_loss  # add total loss of batch
+        
 
         epoch_loss = epoch_loss / total_samples  # average loss per element for whole epoch
         self.epoch_metrics['epoch'] = epoch_num
