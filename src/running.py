@@ -67,8 +67,6 @@ def pipeline_factory(config):
             UnsupervisedRunner,
         )
     if (task == "classification") or (task == "regression"):
-        return ClassiregressionDataset, collate_superv, SupervisedRunner
-    if task == "regression_random_access":
         return ClassiregressionRandomAccessDataset, collate_superv, SupervisedRunner
     else:
         raise NotImplementedError("Task '{}' not implemented".format(task))
