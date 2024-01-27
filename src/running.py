@@ -576,6 +576,7 @@ class SupervisedRunner(BaseRunner):
             per_batch["predictions"].append(predictions.cpu().numpy())
             per_batch["metrics"].append([loss.cpu().numpy()])
             per_batch["IDs"].append(IDs)
+            per_batch['target_base'].append(X[:, -1, :].cpu().numpy())
 
             metrics = {"loss": mean_loss}
             if i % self.print_interval == 0:

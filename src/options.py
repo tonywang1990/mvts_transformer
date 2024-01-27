@@ -136,6 +136,7 @@ class Options(object):
         self.parser.add_argument('--freeze', action='store_true',
                                  help='If set, freezes all layer parameters except for the output layer. Also removes dropout except before the output layer')
         self.parser.add_argument('--sampling_ratio',type=float, default=1.0, help='sampling ratio of training data in one epoch, less than 1.0 means using not the entire dataset for epoch training')
+        self.parser.add_argument('--val_sampling_ratio',type=float, default=1.0, help='sampling ratio of val data in one epoch, less than 1.0 means using not the entire dataset for epoch validation')
 
         # Model
         self.parser.add_argument('--model', choices={"transformer", "LINEAR"}, default="transformer",
