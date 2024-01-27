@@ -14,27 +14,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 logger.info("Loading packages ...")
+import json
 import os
+import pickle
 import sys
 import time
-import pickle
-import json
 
-# 3rd party packages
-from tqdm import tqdm
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-
+from datasets.data import Normalizer, data_factory
+from datasets.datasplit import split_dataset
+from models.loss import get_loss_module
+from models.ts_transformer import model_factory
+from optimizers import get_optimizer
 # Project modules
 from options import Options
-from running import setup, pipeline_factory, validate, check_progress, NEG_METRICS
+from running import (NEG_METRICS, check_progress, pipeline_factory, setup,
+                     validate)
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+# 3rd party packages
+from tqdm import tqdm
 from utils import utils
-from datasets.data import data_factory, Normalizer
-from datasets.datasplit import split_dataset
-from models.ts_transformer import model_factory
-from models.loss import get_loss_module
-from optimizers import get_optimizer
 
 
 def main(config):

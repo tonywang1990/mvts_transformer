@@ -1,16 +1,11 @@
-from typing import Optional, Any
 import math
+from typing import Any, Optional
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
-from torch.nn.modules import (
-    MultiheadAttention,
-    Linear,
-    Dropout,
-    BatchNorm1d,
-    TransformerEncoderLayer,
-)
+from torch.nn.modules import (BatchNorm1d, Dropout, Linear, MultiheadAttention,
+                              TransformerEncoderLayer)
 
 
 def model_factory(config, data):

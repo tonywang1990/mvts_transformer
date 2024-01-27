@@ -1,19 +1,18 @@
-from typing import Optional
-import os
-from multiprocessing import Pool, cpu_count
 import glob
-import re
 import logging
-from itertools import repeat, chain
-from abc import abstractmethod
+import os
 import random
+import re
+from abc import abstractmethod
+from itertools import chain, repeat
+from multiprocessing import Pool, cpu_count
+from typing import Optional
 
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from sktime import datasets
-
 from datasets import utils
+from sktime import datasets
+from tqdm import tqdm
 
 logger = logging.getLogger("__main__")
 
