@@ -295,7 +295,7 @@ def validate(
         best_metrics = aggr_metrics.copy()
 
         pred_filepath = os.path.join(config["pred_dir"], "best_predictions")
-        # np.savez(pred_filepath, **per_batch)
+        np.savez(pred_filepath, **per_batch)
 
     return aggr_metrics, best_metrics, best_value
 
@@ -318,6 +318,7 @@ class BaseRunner(object):
         l2_reg=None,
         print_interval=10,
         console=True,
+        sampling_ratio=None,
     ):
         self.model = model
         self.dataloader = dataloader
@@ -327,6 +328,7 @@ class BaseRunner(object):
         self.l2_reg = l2_reg
         self.print_interval = print_interval
         self.printer = utils.Printer(console=console)
+        self.sampling_ratio=sampling_ratio
 
         self.epoch_metrics = OrderedDict()
 
@@ -336,8 +338,8 @@ class BaseRunner(object):
     def evaluate(self, epoch_num=None, keep_all=True):
         raise NotImplementedError("Please override in child class")
 
-    def print_callback(self, i_batch, metrics, prefix=""):
-        total_batches = len(self.dataloader)
+    def print_callback(self, i_batch, metrics, prefix="", batch_limit=-1):
+        total_batches = len(self.dataloader) if batch_limit == -1 else batch_limit
 
         template = "{:5.1f}% | batch: {:9d} of {:9d}"
         content = [100 * (i_batch / total_batches), i_batch, total_batches]
@@ -493,8 +495,13 @@ class SupervisedRunner(BaseRunner):
 
         epoch_loss = 0  # total loss of epoch
         total_samples = 0  # total samples in epoch
+        sampling_ratio = self.sampling_ratio
+        batch_limit = int(sampling_ratio * len(self.dataloader))
+        logger.info(f"Training: Sampling Ratio = {sampling_ratio}, #batches per epoch = {batch_limit}")
 
         for i, batch in enumerate(self.dataloader):
+            if i > batch_limit:
+                break
             X, targets, padding_masks, IDs = batch
             targets = targets.to(self.device)
             padding_masks = padding_masks.to(self.device)  # 0s: ignore
@@ -524,7 +531,7 @@ class SupervisedRunner(BaseRunner):
             metrics = {"loss": mean_loss.item()}
             if i % self.print_interval == 0:
                 ending = "" if epoch_num is None else "Epoch {} ".format(epoch_num)
-                self.print_callback(i, metrics, prefix="Training " + ending)
+                self.print_callback(i, metrics, prefix="Training " + ending, batch_limit=batch_limit)
 
             with torch.no_grad():
                 total_samples += len(loss)
