@@ -584,9 +584,14 @@ class FutsData(BaseData):
         feature_df = self.get_feature_data(os.path.join(root_dir, pattern))
         num_rows = feature_df.shape[0]
         # process labels
-        labels_df = self.get_label_data(feature_df, lookahead=self.lookahead, seq_len=self.max_seq_len)
+        labels_df = self.get_label_data(
+            feature_df, lookahead=self.lookahead, seq_len=self.max_seq_len
+        )
         # all_IDs uses a compressed representation: i-th position in all_ID maps to (start, end) of the feature_df and start of the label_df.
-        self.all_IDs = [[i, i+self.max_seq_len-1] for i in range(0,num_rows-self.lookahead-self.max_seq_len)]
+        self.all_IDs = [
+            [i, i + self.max_seq_len - 1]
+            for i in range(0, num_rows - self.lookahead - self.max_seq_len)
+        ]
         self.all_df = feature_df
         self.labels_df = labels_df
         if limit_size is not None:
@@ -671,9 +676,10 @@ class FutsData(BaseData):
         """
         Compute label value based on feature_df.
         TODO:
-        Current data is normalized with rolling window. Need to figure out how to unnormalize to calculate the right correlation. 
+        Current data is normalized with rolling window. Need to figure out how to unnormalize to calculate the right correlation.
         """
-        def _extract_label(data_df: pd.DataFrame, lookahead: int, seq_len:int):
+
+        def _extract_label(data_df: pd.DataFrame, lookahead: int, seq_len: int):
             BID = "bid_0"
             ASK = "ask_0"
             idx1 = [i for i, n in enumerate(data_df.columns) if BID in n]
@@ -681,14 +687,16 @@ class FutsData(BaseData):
             assert len(idx1) == 1 and len(idx2) == 1, f"{idx1}, {idx2}"
             # sample the dataframe with an offset of lookahead(40) + seq_len(1024) - 1
             label_df = (
-                data_df.iloc[lookahead+seq_len-1:, idx1[0]] + data_df.iloc[lookahead+seq_len-1:, idx2[0]]
+                data_df.iloc[lookahead + seq_len - 1 :, idx1[0]]
+                + data_df.iloc[lookahead + seq_len - 1 :, idx2[0]]
             ) / 2
             label_df = label_df.reset_index(drop=True)
             return label_df.to_frame().astype(np.float32)
 
         label_df = _extract_label(feature_df, lookahead, seq_len)
-        #assert max(label_df.index) == max(feature_df.index)
+        # assert max(label_df.index) == max(feature_df.index)
         return label_df
+
 
 data_factory = {
     "weld": WeldData,

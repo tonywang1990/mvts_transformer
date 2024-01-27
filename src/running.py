@@ -328,7 +328,7 @@ class BaseRunner(object):
         self.l2_reg = l2_reg
         self.print_interval = print_interval
         self.printer = utils.Printer(console=console)
-        self.sampling_ratio=sampling_ratio
+        self.sampling_ratio = sampling_ratio
 
         self.epoch_metrics = OrderedDict()
 
@@ -497,7 +497,9 @@ class SupervisedRunner(BaseRunner):
         total_samples = 0  # total samples in epoch
         sampling_ratio = self.sampling_ratio
         batch_limit = int(sampling_ratio * len(self.dataloader))
-        logger.info(f"Training: Sampling Ratio = {sampling_ratio}, #batches per epoch = {batch_limit}")
+        logger.info(
+            f"Training: Sampling Ratio = {sampling_ratio}, #batches per epoch = {batch_limit}"
+        )
 
         for i, batch in enumerate(self.dataloader):
             if i > batch_limit:
@@ -531,7 +533,9 @@ class SupervisedRunner(BaseRunner):
             metrics = {"loss": mean_loss.item()}
             if i % self.print_interval == 0:
                 ending = "" if epoch_num is None else "Epoch {} ".format(epoch_num)
-                self.print_callback(i, metrics, prefix="Training " + ending, batch_limit=batch_limit)
+                self.print_callback(
+                    i, metrics, prefix="Training " + ending, batch_limit=batch_limit
+                )
 
             with torch.no_grad():
                 total_samples += len(loss)
