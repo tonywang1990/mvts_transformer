@@ -6,6 +6,7 @@ import re
 import logging
 from itertools import repeat, chain
 from abc import abstractmethod
+import random
 
 import numpy as np
 import pandas as pd
@@ -581,25 +582,19 @@ class FutsData(BaseData):
         self.lookahead = 40
         # process features
         feature_df = self.get_feature_data(os.path.join(root_dir, pattern))
-        feature_df["futs_record_index"] = feature_df.index // self.max_seq_len
-        feature_df = feature_df.set_index("futs_record_index")
+        num_rows = feature_df.shape[0]
         # process labels
         labels_df = self.get_label_data(feature_df, lookahead=self.lookahead, seq_len=self.max_seq_len)
-        last_batch = max(labels_df.index)
-        labels_df = labels_df[labels_df.index <= last_batch-1]
-        feature_df = feature_df[feature_df.index <= last_batch-1]
+        # all_IDs uses a compressed representation: i-th position in all_ID maps to (start, end) of the feature_df and start of the label_df.
+        self.all_IDs = [[i, i+self.max_seq_len-1] for i in range(0,num_rows-self.lookahead-self.max_seq_len)]
         self.all_df = feature_df
         self.labels_df = labels_df
-        
-        # self.all_df = self.all_df.sort_values(by=['machine_record_index'])  # datasets is presorted
-        self.all_IDs = self.all_df.index.unique()  # all sample (session) IDs
         if limit_size is not None:
             if limit_size > 1:
                 limit_size = int(limit_size)
             else:  # interpret as proportion if in (0, 1]
                 limit_size = int(limit_size * len(self.all_IDs))
-            self.all_IDs = self.all_IDs[:limit_size]
-            self.all_df = self.all_df.loc[self.all_IDs]
+            self.all_IDs = random.sample(self.all_IDs, k=limit_size)
 
         self.feature_names = list(self.all_df.columns)
         self.feature_df = self.all_df[self.feature_names]
@@ -684,10 +679,11 @@ class FutsData(BaseData):
             idx1 = [i for i, n in enumerate(data_df.columns) if BID in n]
             idx2 = [i for i, n in enumerate(data_df.columns) if ASK in n]
             assert len(idx1) == 1 and len(idx2) == 1, f"{idx1}, {idx2}"
-            # sample the dataframe by every seq_len(1024) rows with an offset of lookahead(40)
+            # sample the dataframe with an offset of lookahead(40) + seq_len(1024) - 1
             label_df = (
-                data_df.iloc[lookahead::seq_len, idx1[0]] + data_df.iloc[lookahead::seq_len, idx2[0]]
+                data_df.iloc[lookahead+seq_len-1:, idx1[0]] + data_df.iloc[lookahead+seq_len-1:, idx2[0]]
             ) / 2
+            label_df = label_df.reset_index(drop=True)
             return label_df.to_frame().astype(np.float32)
 
         label_df = _extract_label(feature_df, lookahead, seq_len)

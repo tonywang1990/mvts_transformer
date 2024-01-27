@@ -87,23 +87,9 @@ def main(config):
         val_data = data_class(config['data_dir'], pattern=config['val_pattern'], n_proc=-1, config=config)
         val_indices = val_data.all_IDs
 
-    # Note: currently a validation set must exist, either with `val_pattern` or `val_ratio`
-    # Using a `val_pattern` means that `val_ratio` == 0 and `test_ratio` == 0
-    if config['val_ratio'] > 0:
-        train_indices, val_indices, test_indices = split_dataset(data_indices=my_data.all_IDs,
-                                                                 validation_method=validation_method,
-                                                                 n_splits=1,
-                                                                 validation_ratio=config['val_ratio'],
-                                                                 test_set_ratio=config['test_ratio'],  # used only if test_indices not explicitly specified
-                                                                 test_indices=test_indices,
-                                                                 random_seed=1337,
-                                                                 labels=labels)
-        train_indices = train_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
-        val_indices = val_indices[0]  # `split_dataset` returns a list of indices *per fold/split*
-    else:
-        train_indices = my_data.all_IDs
-        if test_indices is None:
-            test_indices = []
+    train_indices = my_data.all_IDs
+    if test_indices is None:
+        test_indices = []
 
     logger.info("{} samples may be used for training".format(len(train_indices)))
     logger.info("{} samples will be used for validation".format(len(val_indices)))
@@ -127,7 +113,7 @@ def main(config):
         normalizer = Normalizer(**norm_dict)
     elif config['normalization'] is not None:
         normalizer = Normalizer(config['normalization'])
-        my_data.feature_df.loc[train_indices] = normalizer.normalize(my_data.feature_df.loc[train_indices])
+        my_data.feature_df = normalizer.normalize(my_data.feature_df)
         if not config['normalization'].startswith('per_sample'):
             # get normalizing values from training set and store for future use
             norm_dict = normalizer.__dict__
@@ -135,9 +121,9 @@ def main(config):
                 pickle.dump(norm_dict, f, pickle.HIGHEST_PROTOCOL)
     if normalizer is not None:
         if len(val_indices):
-            val_data.feature_df.loc[val_indices] = normalizer.normalize(val_data.feature_df.loc[val_indices])
+            val_data.feature_df = normalizer.normalize(val_data.feature_df)
         if len(test_indices):
-            test_data.feature_df.loc[test_indices] = normalizer.normalize(test_data.feature_df.loc[test_indices])
+            test_data.feature_df = normalizer.normalize(test_data.feature_df)
 
     # Create model
     logger.info("Creating model ...")
