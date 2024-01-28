@@ -635,6 +635,7 @@ class FutsData(BaseData):
         """
         logger.info(f"preprocssing data from {pattern}")
         num_rows = 0
+        num_cols = 0
         for file in sorted(glob.glob(pattern)):
             if "xy" in file:
                 continue
@@ -649,11 +650,11 @@ class FutsData(BaseData):
         path = f"/workspace/futs/data/{split}.bin"
 
         # If file already exists and matches, directly return without importing again.
-        if os.path.isfile(path):
-            arr = np.memmap(path, dtype=float, mode="r")
-            if arr.shape == (num_rows, num_cols):
-                logger.info(f"loaded data from preprocessed file {path}")
-                return data.pd.DataFrame(arr, copy=False), None
+        #if os.path.isfile(path):
+        #    arr = np.memmap(path, dtype=float, mode="r")
+        #    if arr.shape == (num_rows, num_cols):
+        #        logger.info(f"loaded data from preprocessed file {path}")
+        #        return data.pd.DataFrame(arr, copy=False)
 
         # If files don't exist, create and import data.
         arr = np.memmap(path, dtype=float, mode="w+", shape=(num_rows, num_cols))
@@ -667,9 +668,9 @@ class FutsData(BaseData):
             arr[i : i + df.shape[0], :] = df.values
             i += df.shape[0]
         logger.info(f"loaded data from {pattern}")
-        data = pd.DataFrame(arr, copy=False)
-        arr.flush()  # save to disk
-        return data, None
+        data = pd.DataFrame(arr, columns=df.columns, copy=False)
+        #arr.flush()  # save to disk
+        return data 
 
     def get_label_data(self, feature_df: pd.DataFrame, lookahead: int, seq_len: int):
         """

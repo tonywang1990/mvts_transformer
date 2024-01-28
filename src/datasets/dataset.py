@@ -12,7 +12,7 @@ class ImputationDataset(Dataset):
 
         self.data = data  # this is a subclass of the BaseData class in data.py
         self.IDs = indices  # list of data IDs, but also mapping between integer index and ID
-        self.feature_df = self.data.feature_df.loc[self.IDs]
+        self.feature_df = self.data.feature_df
 
         self.masking_ratio = masking_ratio
         self.mean_mask_length = mean_mask_length
@@ -31,7 +31,8 @@ class ImputationDataset(Dataset):
             ID: ID of sample
         """
 
-        X = self.feature_df.loc[self.IDs[ind]].values  # (seq_length, feat_dim) array
+        X = self.feature_df.loc[self.IDs[ind][0] : self.IDs[ind][1]].values  # (seq_length, feat_dim) array
+        #X = self.feature_df.loc[self.IDs[ind]].values  # (seq_length, feat_dim) array
         mask = noise_mask(X, self.masking_ratio, self.mean_mask_length, self.mode, self.distribution,
                           self.exclude_feats)  # (seq_length, feat_dim) boolean array
 

@@ -121,16 +121,16 @@ def main(config):
     logger.info("{} samples will be used for validation".format(len(val_indices)))
     logger.info("{} samples will be used for testing".format(len(test_indices)))
 
-    with open(os.path.join(config["output_dir"], "data_indices.json"), "w") as f:
-        json.dump(
-            {
-                "train_indices": list(train_indices),
-                "val_indices": list(val_indices),
-                "test_indices": list(test_indices),
-            },
-            f,
-            indent=4,
-        )
+    #with open(os.path.join(config["output_dir"], "data_indices.json"), "w") as f:
+    #    json.dump(
+    #        {
+    #            "train_indices": list(train_indices),
+    #           "val_indices": list(val_indices),
+    #            "test_indices": list(test_indices),
+    #        },
+    #        f,
+    #        indent=4,
+    #    )
 
     # Pre-process features
     normalizer = None

@@ -558,6 +558,7 @@ class SupervisedRunner(BaseRunner):
             "predictions": [],
             "metrics": [],
             "IDs": [],
+            "target_base": [],
         }
         for i, batch in enumerate(self.dataloader):
             X, targets, padding_masks, IDs = batch
