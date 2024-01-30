@@ -1,6 +1,6 @@
 import numpy as np
-from torch.utils.data import Dataset
 import torch
+from torch.utils.data import Dataset
 
 
 class ImputationDataset(Dataset):
@@ -173,7 +173,7 @@ class ClassiregressionRandomAccessDataset(Dataset):
             ID: ID of sample
         """
         X = self.feature_df.loc[self.IDs[ind][0] : self.IDs[ind][1]].values  # (seq_length, feat_dim) array
-        y = self.labels_df.loc[self.IDs[ind][0]].values  # (num_labels,) array
+        y = self.labels_df.loc[self.IDs[ind][1]].values  # (num_labels,) array
 
         return torch.from_numpy(X), torch.from_numpy(y), self.IDs[ind][0]
 

@@ -1,8 +1,8 @@
 #!/bin/bash
 # For runpod
-root_dir=/workspace/futs
+#root_dir=/workspace/futs
 # For local
-#root_dir=/Users/tonywy/Desktop/Xode/mvts
+root_dir=/Users/tonywy/Desktop/Xode/mvts
 
 ## Memory calcualtion
 # 1 batch of data = batch_size * seq_len * feature_dim 
@@ -14,7 +14,7 @@ root_dir=/workspace/futs
 
 #python main.py --output_dir $root_dir/output/futs/finetune/$1 --name futs_finetune_$1 --records_file Regression_records.xls --data_class futs --epochs 10 --lr 0.001 --optimizer RAdam  --pos_encoding learnable --task regression --data_dir $root_dir/data/ --pattern "ZCE_CH_$1/train/daily_frame.*.parquet" --val_pattern "ZCE_CH_$1/val/daily_frame.*.parquet" --load_model $root_dir/output/futs/pretrain/futs_imputation_2024-01-20_16-53-34_KEd/checkpoints/model_best.pth --change_output
 
-python main.py --output_dir $root_dir/output/mvts/finetune/$1 --name futs_finetune_$1 --records_file Regression_records.xls --data_class futs --epochs 10 --lr 0.0001 --batch_size 256 --optimizer RAdam  --pos_encoding learnable --task regression --data_dir $root_dir/data/ --pattern "ZCE_CH_$1/train/daily_frame.*.parquet" --val_pattern ZCE_CH_$1/val/daily_frame.202312??.parquet --sampling_ratio 0.3 --load_model $root_dir/output/mvts/pretrain/futs_imputation_2024-01-23_20-50-12_foundation/checkpoints/model_best.pth --change_output
+python main.py --output_dir $root_dir/output/futs/finetune/$1 --name futs_finetune_$1 --records_file Regression_records.xls --data_class futs_v2 --epochs 10 --lr 0.0001 --batch_size 256 --optimizer RAdam  --pos_encoding learnable --task regression --data_dir $root_dir/data/ --pattern "ZCE_CH_$1/train/daily_frame.*.parquet" --val_pattern ZCE_CH_$1/val/daily_frame.202312??.parquet --sampling_ratio 0.05 #--load_model $root_dir/output/mvts/pretrain/futs_imputation_2024-01-23_20-50-12_foundation/checkpoints/model_best.pth --change_output
 
 
 # For testing only - overfitting one day
