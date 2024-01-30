@@ -241,6 +241,22 @@ def evaluate(evaluator):
 
     return aggr_metrics, per_batch
 
+def calc_corr(per_batch) -> float:
+    # Flatten
+    targets = per_batch['targets'].flatten()
+    preds = per_batch['predictions'].flatten()
+    base = (per_batch['target_base'][:,:,0] + per_batch['target_base'][:,:,10]) / 2
+    base = base.flatten()
+    ids = per_batch['IDs'].flatten()
+    # sort
+    targets = targets[ids]
+    preds = preds[ids]
+    base = base[ids]
+    # calcualte price change
+    pred_ret = preds - base
+    target_ret = targets - base
+    return np.corrcoef(pred_ret, target_ret)[0,1]
+
 
 def validate(
     val_evaluator, tensorboard_writer, config, best_metrics, best_value, epoch
@@ -278,7 +294,7 @@ def validate(
         tensorboard_writer.add_scalar("{}/val".format(k), v, epoch)
         print_str += "{}: {:8f} | ".format(k, v)
     logger.info(print_str)
-
+    logger.info(f"Correlation of eval data: {calc_corr(per_batch=per_batch)}")
     if config["key_metric"] in NEG_METRICS:
         condition = aggr_metrics[config["key_metric"]] < best_value
     else:
