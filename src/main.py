@@ -26,12 +26,13 @@ from datasets.datasplit import split_dataset
 from models.loss import get_loss_module
 from models.ts_transformer import model_factory
 from optimizers import get_optimizer
+
 # Project modules
 from options import Options
-from running import (NEG_METRICS, check_progress, pipeline_factory, setup,
-                     validate)
+from running import NEG_METRICS, check_progress, pipeline_factory, setup, validate
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+
 # 3rd party packages
 from tqdm import tqdm
 from utils import utils
@@ -191,7 +192,7 @@ def main(config):
     lr = config["lr"]  # current learning step
     # Load model and optimizer state
     if args.load_model:
-        logger.info(f"load model params from {config['load_model']}")
+        #logger.info(f"load model params from {config['load_model']}")
         model, optimizer, start_epoch = utils.load_model(
             model,
             config["load_model"],
